@@ -20,7 +20,15 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --max-warnings=0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "eslint-config-react-app": "^7.0.0",
+    "eslint-plugin-react": "^7.0.0",
+    "eslint-plugin-jsx-a11y": "^6.0.0",
+    "eslint-plugin-react-hooks": "^4.0.0"
   },
   "eslintConfig": {
     "extends": [
