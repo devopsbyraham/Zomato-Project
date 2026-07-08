@@ -39,7 +39,7 @@ concurrency:
   
 env:
   NODE_VERSION: "22"
-  IMAGE_NAME: zomato
+  IMAGE_NAME: dileeppetla26/zomato
   IMAGE_TAG: ${{ github.sha }}
 
  
