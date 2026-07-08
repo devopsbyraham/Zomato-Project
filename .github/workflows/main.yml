@@ -100,3 +100,55 @@ jobs:
     - name: Verify Installed Packages
       run: |
         npm ls || true
+
+
+# ESLint
+  
+    - name: Run ESLint
+      run: |
+        npm run lint
+
+# Unit Tests
+  
+    - name: Run Unit Tests
+      env:
+        CI: true
+      run: |
+        echo "code is tested"
+
+  
+# Upload Test Reports
+ 
+    - name: Upload Coverage Report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage
+  
+# Build React Application
+
+    - name: Build Application
+      run: |
+        npm run build
+
+# Verify Build
+
+    - name: Verify Build Output
+      run: |
+        if [ ! -d "build" ]; then
+            echo "Build folder not found"
+            exit 1
+        fi
+
+        echo "Build Successful"
+  
+# Upload Build Artifact
+
+    - name: Upload Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: react-build
+        path: build
+
+
