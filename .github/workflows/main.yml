@@ -41,7 +41,7 @@ env:
   NODE_VERSION: "22"
   IMAGE_NAME: zomato
   IMAGE_TAG: ${{ github.sha }}
-
+  REPO: nodejsimage
  
 jobs:
 
@@ -301,6 +301,7 @@ jobs:
 #  Push Image
     - name: Push Docker Image
       run: |
+        docker tag ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} ${{ secrets.DOCKER_USER }}/${{ env.REPO }}
         docker push $IMAGE_NAME:${{ github.sha }}
 
 # Verify Container Starts
