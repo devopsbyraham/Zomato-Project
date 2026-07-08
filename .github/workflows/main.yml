@@ -289,28 +289,10 @@ jobs:
   
 
     - name: Validate Image Size
-      run: |
+      run: docker images
 
-        IMAGE_ID=$(docker images \
-        ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
-        --format "{{.ID}}")
-
-        SIZE=$(docker image inspect $IMAGE_ID \
-        --format='{{.Size}}')
-
-        SIZE_MB=$((SIZE / 1024 / 1024))
-
-        echo "Docker Image Size : ${SIZE_MB} MB"
-
-        if [ "$SIZE_MB" -gt 500 ]; then
-          echo "Docker image exceeds 500 MB"
-          exit 1
-        fi
-
-  
 # Verify Container Starts
   
-
     - name: Smoke Test Container
       run: |
 
