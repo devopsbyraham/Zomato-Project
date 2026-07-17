@@ -142,4 +142,196 @@ jobs:
             package*
 
 
+# Security Scan Job
+  
+
+  security:
+    name: Security & Docker Validation
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+
+  
+# Checkout Repository
+  
+
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+  
+# Download Build Artifact
+  
+
+    - name: Download React Build
+      uses: actions/download-artifact@v4
+      with:
+        name:  artifact-1
+        path: |
+           package*
+
+  
+# Gitleaks Secret Scan
+  
+
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GT }}
+
+#Install Trivy
+
+    - name: Install Trivy
+      uses: aquasecurity/setup-trivy@e07451d2e059ed86c2870430ea286b3a9e0bf241
+  
+# Trivy Filesystem Scan
+
+    - name: Run Trivy Filesystem Scan
+      uses: aquasecurity/setup-trivy@e07451d2e059ed86c2870430ea286b3a9e0bf241
+      with:
+        scan-type: fs
+        scan-ref: .
+        format: sarif
+        output: trivy-fs.sarif
+        severity: CRITICAL,HIGH
+        exit-code: 1
+        ignore-unfixed: true
+
+  
+# Upload Trivy SARIF
+  
+#    - name: Run Trivy scan (CLI) 
+ #     run: | 
+  #      trivy fs --format sarif --output trivy-fs.sarif --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed 
+
+  
+# Hadolint Dockerfile Scan
+#Its smart, open-source Dockerfile linter used to enforce best practices, catch syntax errors, and flag security vulnerabilities. 
+#It even integrates ShellCheck to validate Bash code inside your RUN instructions.
+  
+
+    - name: Lint Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
+        failure-threshold: warning
+
+  
+# Setup Docker Buildx
+#Multi-Platform Builds: Build images for linux/amd64 and linux/arm64 using the --platform flag.
+#Advanced Caching: Use cloud registries and advanced layer caching to significantly speed up continuous integration builds.
+#Multiple Builder Instances: Create and manage separate build environments simultaneously, including isolated container-driven environments or remote Kubernetes clusters.
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+  
+# Restore Docker Layer Cache
+  
+    - name: Restore Docker Cache
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+
+  
+# Build Docker Image
+  
+
+    - name: Build Docker Image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: Dockerfile
+        push: false
+
+        tags: |
+          ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          ${{ env.IMAGE_NAME }}:latest
+
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+        provenance: false
+
+        load: true
+
+        labels: |
+          org.opencontainers.image.title=Zomato
+          org.opencontainers.image.source=${{ github.repository }}
+          org.opencontainers.image.version=${{ github.sha }}
+          org.opencontainers.image.revision=${{ github.sha }}
+          org.opencontainers.image.created=${{ github.run_id }}
+
+  
+# Move Docker Cache
+  
+    - name: Update Docker Cache
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+# Verify Docker Image
+  
+
+    - name: Verify Docker Image
+      run: |
+        docker images
+
+        docker image inspect \
+        ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+  
+# Validate Image Size
+
+    - name: Validate Image Size
+      run: docker images
+
+  #  Login Securely
+    - name: Login to DockerHub
+      uses: docker/login-action@v4
+      with:
+        username: ${{ secrets.DOCKER_USER }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+#  Push Image
+    - name: Push Docker Image
+      run: |
+        docker tag ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} ${{ secrets.DOCKER_USER }}/${{ env.REPO }}:${{ env.IMAGE_TAG}}
+        docker push ${{ secrets.DOCKER_USER }}/${{ env.REPO }}:${{ env.IMAGE_TAG }}
+
+# Verify Container Starts
+  
+    - name: Smoke Test Container
+      run: |
+
+        docker run -d \
+        --name zomato-test \
+        -p 3000:3000 \
+        ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+        sleep 20
+
+        docker ps
+
+        docker logs zomato-test
+
+  
+# Cleanup Test Container
+  
+
+    - name: Cleanup
+      if: always()
+      run: |
+        docker rm -f zomato-test || true
+
+
+
+
 
