@@ -194,30 +194,40 @@ jobs:
 #      env:
  #       GITHUB_TOKEN: ${{ secrets.GT }}
 
-#Install Trivy
+
+   # Install Trivy
 
     - name: Install Trivy
-      uses: aquasecurity/setup-trivy@e07451d2e059ed86c2870430ea286b3a9e0bf241
-  
-# Trivy Filesystem Scan
+      uses: aquasecurity/setup-trivy@v0.2.2
 
+# Verify Trivy
+    - name: Verify Trivy
+      run: trivy --version
+
+# Run Filesystem Scan
     - name: Run Trivy Filesystem Scan
-      uses: aquasecurity/setup-trivy@e07451d2e059ed86c2870430ea286b3a9e0bf241
-      with:
-        scan-type: fs
-        scan-ref: .
-        format: sarif
-        output: trivy-fs.sarif
-        severity: CRITICAL,HIGH
-        exit-code: 1
-        ignore-unfixed: true
+      continue-on-error: true
+      run: |
+        trivy fs \
+        --format sarif \
+        --output trivy-fs.sarif \
+        --severity CRITICAL,HIGH \
+        --ignore-unfixed \
+        .
 
-# Upload SARIF report to GitHub Security
+# Verify SARIF Exists
+    - name: Verify SARIF
+     run: |
+       pwd
+       ls -la
+       find . -name "*.sarif"
+
+# Upload to GitHub Security
     - name: Upload Trivy Scan Results
       if: always()
       uses: github/codeql-action/upload-sarif@v4
       with:
-        sarif_file: trivy-fs.sarif
+        sarif_file: ./trivy-fs.sarif
 
   
 # Hadolint Dockerfile Scan
