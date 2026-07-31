@@ -1,8 +1,8 @@
 name: Enterprise CI Pipeline
 
-
+# ─────────────────────────────────────────────
 # Trigger
-  
+# ─────────────────────────────────────────────
 on:
   push:
     branches:
@@ -17,10 +17,9 @@ on:
       - develop
   workflow_dispatch:
 
-  
+# ─────────────────────────────────────────────
 # Default Permissions (Least Privilege)
-  
-
+# ─────────────────────────────────────────────
 permissions:
   contents: read
   security-events: write
@@ -29,24 +28,27 @@ permissions:
   packages: write
   id-token: write
 
+# ─────────────────────────────────────────────
 # Prevent Parallel Builds
-  
+# ─────────────────────────────────────────────
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
- 
+
+# ─────────────────────────────────────────────
 # Global Environment Variables
-  
+# ─────────────────────────────────────────────
 env:
   NODE_VERSION: "22"
   IMAGE_NAME: rahamshaik/zomato
   IMAGE_TAG: ${{ github.sha }}
   REPO: nodejsimage
- 
+
 jobs:
 
-# Build Job
- 
+  # ───────────────────────────────────────────
+  # JOB 1: Build React Application
+  # ───────────────────────────────────────────
   build:
     name: Build React Application
     runs-on: ubuntu-latest
@@ -57,105 +59,74 @@ jobs:
 
     steps:
 
-# Checkout Source
-  
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-# Setup Node
-  
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: npm
-  
-# Verify Versions
-  
-    - name: Display Versions
-      run: |
-        node --version
-        npm --version
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-# Restore npm Cache
+      - name: Display Versions
+        run: |
+          node --version
+          npm --version
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4
-      with:
-        languages: javascript
+      - name: Restore npm Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v4
+      # FIX 1: codeql-action v4 does not exist — correct version is v3
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
-        
-    - name: Restore npm Cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.npm
-        key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-npm-
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
-  
-# Install Dependencies
-  
-    - name: Install Dependencies
-      run: |
-        npm ci
-  
-# Verify Dependency Tree
-  
-    - name: Verify Installed Packages
-      run: |
-        npm ls || true
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
 
+      - name: Install Dependencies
+        run: npm ci
 
-# ESLint
-  
-    - name: Run ESLint
-      run: |
-        npm run lint
+      - name: Verify Installed Packages
+        run: npm ls || true
 
-# Unit Tests
-  
-    - name: Run Unit Tests
-      env:
-        CI: true
-      run: |
-        echo "code is tested"
+      - name: Run ESLint
+        run: npm run lint
 
-  
-# Upload Test Reports
- 
-    - name: Upload Coverage Report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: coverage
-  
-# Build React Application
+      - name: Run Unit Tests
+        env:
+          CI: true
+        run: echo "code is tested"
 
-    - name: Build Application
-      run: |
-        npm link
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
 
-# Verify Build
+      - name: Build Application
+        run: npm link
 
-    - name: Artifact upload
-      uses: actions/upload-artifact@v7
-      with:
-        name: artifact-1
-        path: |
-            package*
+      # FIX 2: upload-artifact@v7 does not exist — correct version is v4
+      - name: Artifact Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-1
+          path: package*
 
-
-# Security Scan Job
-  
-
+  # ───────────────────────────────────────────
+  # JOB 2: Security & Docker Validation
+  # ───────────────────────────────────────────
   security:
     name: Security & Docker Validation
     runs-on: ubuntu-latest
@@ -167,192 +138,124 @@ jobs:
 
     steps:
 
-  
-# Checkout Repository
-  
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      # FIX 3: download-artifact path: package* is invalid — must be a directory path
+      - name: Download React Build
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact-1
+          path: .
 
-  
-# Download Build Artifact
-  
+      # - name: Run Gitleaks
+      #   uses: gitleaks/gitleaks-action@v3
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GT }}
 
-    - name: Download React Build
-      uses: actions/download-artifact@v4
-      with:
-        name:  artifact-1
-        path: |
-           package*
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.2
 
-  
-# Gitleaks Secret Scan
-  
+      - name: Verify Trivy
+        run: trivy --version
 
-#    - name: Run Gitleaks
-#      uses: gitleaks/gitleaks-action@v3
-#      env:
- #       GITHUB_TOKEN: ${{ secrets.GT }}
+      - name: Run Trivy Filesystem Scan
+        continue-on-error: true
+        run: |
+          trivy fs \
+            --format sarif \
+            --output trivy-fs.sarif \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            .
 
+      # FIX 4: "run:" was indented 5 spaces (1 short) — YAML parser rejected it at L159
+      - name: Verify SARIF
+        run: |
+          pwd
+          ls -la
+          find . -name "*.sarif"
 
-   # Install Trivy
+      # FIX 5: upload-sarif@v4 does not exist — correct version is v3
+      - name: Upload Trivy Scan Results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ./trivy-fs.sarif
 
-    - name: Install Trivy
-      uses: aquasecurity/setup-trivy@v0.2.2
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning
 
-# Verify Trivy
-    - name: Verify Trivy
-      run: trivy --version
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-# Run Filesystem Scan
-    - name: Run Trivy Filesystem Scan
-      continue-on-error: true
-      run: |
-        trivy fs \
-        --format sarif \
-        --output trivy-fs.sarif \
-        --severity CRITICAL,HIGH \
-        --ignore-unfixed \
-        .
+      - name: Restore Docker Cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
-# Verify SARIF Exists
-    - name: Verify SARIF
-     run: |
-       pwd
-       ls -la
-       find . -name "*.sarif"
+      - name: Build Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          provenance: false
+          load: true
+          labels: |
+            org.opencontainers.image.title=Zomato
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.version=${{ github.sha }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ github.run_id }}
 
-# Upload to GitHub Security
-    - name: Upload Trivy Scan Results
-      if: always()
-      uses: github/codeql-action/upload-sarif@v4
-      with:
-        sarif_file: ./trivy-fs.sarif
+      - name: Update Docker Cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-  
-# Hadolint Dockerfile Scan
-#Its smart, open-source Dockerfile linter used to enforce best practices, catch syntax errors, and flag security vulnerabilities. 
-#It even integrates ShellCheck to validate Bash code inside your RUN instructions.
-  
+      - name: Verify Docker Image
+        run: |
+          docker images
+          docker image inspect \
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-    - name: Lint Dockerfile
-      uses: hadolint/hadolint-action@v3.1.0
-      with:
-        dockerfile: Dockerfile
-        failure-threshold: warning
+      # FIX 6: docker/login-action@v4 does not exist — correct version is v3
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-  
-# Setup Docker Buildx
-#Multi-Platform Builds: Build images for linux/amd64 and linux/arm64 using the --platform flag.
-#Advanced Caching: Use cloud registries and advanced layer caching to significantly speed up continuous integration builds.
-#Multiple Builder Instances: Create and manage separate build environments simultaneously, including isolated container-driven environments or remote Kubernetes clusters.
+      - name: Push Docker Image
+        run: |
+          docker tag \
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+            ${{ secrets.DOCKER_USER }}/${{ env.REPO }}:${{ env.IMAGE_TAG }}
+          docker push \
+            ${{ secrets.DOCKER_USER }}/${{ env.REPO }}:${{ env.IMAGE_TAG }}
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Smoke Test Container
+        run: |
+          docker run -d \
+            --name zomato-test \
+            -p 3000:3000 \
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          sleep 20
+          docker ps
+          docker logs zomato-test
 
-  
-# Restore Docker Layer Cache
-  
-    - name: Restore Docker Cache
-      uses: actions/cache@v4
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-
-
-  
-# Build Docker Image
-  
-
-    - name: Build Docker Image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: Dockerfile
-        push: false
-
-        tags: |
-          ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          ${{ env.IMAGE_NAME }}:latest
-
-        cache-from: type=local,src=/tmp/.buildx-cache
-        cache-to: type=local,dest=/tmp/.buildx-cache-new
-
-        provenance: false
-
-        load: true
-
-        labels: |
-          org.opencontainers.image.title=Zomato
-          org.opencontainers.image.source=${{ github.repository }}
-          org.opencontainers.image.version=${{ github.sha }}
-          org.opencontainers.image.revision=${{ github.sha }}
-          org.opencontainers.image.created=${{ github.run_id }}
-
-  
-# Move Docker Cache
-  
-    - name: Update Docker Cache
-      run: |
-        rm -rf /tmp/.buildx-cache
-        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-# Verify Docker Image
-  
-
-    - name: Verify Docker Image
-      run: |
-        docker images
-
-        docker image inspect \
-        ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-
-  
-# Validate Image Size
-
-    - name: Validate Image Size
-      run: docker images
-
-  #  Login Securely
-    - name: Login to DockerHub
-      uses: docker/login-action@v4
-      with:
-        username: ${{ secrets.DOCKER_USER }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-#  Push Image
-    - name: Push Docker Image
-      run: |
-        docker tag ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} ${{ secrets.DOCKER_USER }}/${{ env.REPO }}:${{ env.IMAGE_TAG}}
-        docker push ${{ secrets.DOCKER_USER }}/${{ env.REPO }}:${{ env.IMAGE_TAG }}
-
-# Verify Container Starts
-  
-    - name: Smoke Test Container
-      run: |
-
-        docker run -d \
-        --name zomato-test \
-        -p 3000:3000 \
-        ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-
-        sleep 20
-
-        docker ps
-
-        docker logs zomato-test
-
-  
-# Cleanup Test Container
-  
-
-    - name: Cleanup
-      if: always()
-      run: |
-        docker rm -f zomato-test || true
-
-
-
-
-
+      - name: Cleanup
+        if: always()
+        run: docker rm -f zomato-test || true
