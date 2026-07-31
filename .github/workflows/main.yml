@@ -78,7 +78,18 @@ jobs:
         npm --version
 
 # Restore npm Cache
-  
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: javascript
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v4
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
+        
     - name: Restore npm Cache
       uses: actions/cache@v4
       with:
@@ -201,12 +212,13 @@ jobs:
         exit-code: 1
         ignore-unfixed: true
 
-  
-# Upload Trivy SARIF
-  
-#    - name: Run Trivy scan (CLI) 
- #     run: | 
-  #      trivy fs --format sarif --output trivy-fs.sarif --severity CRITICAL,HIGH --exit-code 1 --ignore-unfixed 
+# Upload SARIF report to GitHub Security
+    - name: Upload Trivy Scan Results
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: trivy-fs.sarif
+        category: trivy-fs
 
   
 # Hadolint Dockerfile Scan
