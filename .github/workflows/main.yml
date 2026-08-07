@@ -1,9 +1,8 @@
 name: Enterprise CI Pipeline  
 
 
-# ─────────────────────────────────────────────
 # Trigger
-# ─────────────────────────────────────────────
+
 on:
   push:
     branches:
@@ -18,9 +17,9 @@ on:
       - develop
   workflow_dispatch:
 
-# ─────────────────────────────────────────────
+
 # Default Permissions (Least Privilege)
-# ─────────────────────────────────────────────
+
 permissions:
   contents: read
   security-events: write
@@ -29,16 +28,16 @@ permissions:
   packages: write
   id-token: write
 
-# ─────────────────────────────────────────────
+
 # Prevent Parallel Builds
-# ─────────────────────────────────────────────
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# ─────────────────────────────────────────────
+
 # Global Environment Variables
-# ─────────────────────────────────────────────
+
 env:
   NODE_VERSION: "22"
   IMAGE_NAME: rahamshaik/zomato
@@ -47,9 +46,9 @@ env:
 
 jobs:
 
-  # ───────────────────────────────────────────
+ 
   # JOB 1: Build React Application
-  # ───────────────────────────────────────────
+ 
   build:
     name: Build React Application
     runs-on: ubuntu-latest
@@ -82,7 +81,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
-      # FIX 1: codeql-action v4 does not exist — correct version is v3
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
@@ -118,16 +116,15 @@ jobs:
       - name: Build Application
         run: npm link
 
-      # FIX 2: upload-artifact@v7 does not exist — correct version is v4
       - name: Artifact Upload
         uses: actions/upload-artifact@v4
         with:
           name: artifact-1
           path: package*
 
-  # ───────────────────────────────────────────
+ 
   # JOB 2: Security & Docker Validation
-  # ───────────────────────────────────────────
+ 
   security:
     name: Security & Docker Validation
     runs-on: ubuntu-latest
@@ -142,7 +139,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # FIX 3: download-artifact path: package* is invalid — must be a directory path
       - name: Download React Build
         uses: actions/download-artifact@v4
         with:
@@ -170,14 +166,12 @@ jobs:
             --ignore-unfixed \
             .
 
-      # FIX 4: "run:" was indented 5 spaces (1 short) — YAML parser rejected it at L159
       - name: Verify SARIF
         run: |
           pwd
           ls -la
           find . -name "*.sarif"
 
-      # FIX 5: upload-sarif@v4 does not exist — correct version is v3
       - name: Upload Trivy Scan Results
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -232,7 +226,6 @@ jobs:
           docker image inspect \
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-      # FIX 6: docker/login-action@v4 does not exist — correct version is v3
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
