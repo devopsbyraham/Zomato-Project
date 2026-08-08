@@ -1,6 +1,5 @@
 name: Enterprise CI Pipeline  
-
-
+ 
 # Trigger
 
 on:
