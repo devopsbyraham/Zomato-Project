@@ -1,0 +1,13 @@
+name: Deploy Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  trigger-build:
+    uses: devopsbyraham/github-node-repo-PNXR/.github/workflows/reusable-build.yml@v1
+    with:
+      node-version: '20'
+    secrets:
+      API_TOKEN: ${{ secrets.PROD_API_TOKEN }}
