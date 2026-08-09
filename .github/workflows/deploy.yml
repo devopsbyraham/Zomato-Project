@@ -6,7 +6,7 @@ on:
 
 jobs:
   trigger-build:
-    uses: devopsbyraham/github-node-repo-PNXR/.github/workflows/reusable-build.yml@v1
+    uses: devopsbyraham/github-node-repo-PNXR/.github/workflows/main.yml@v1
     with:
       node-version: '20'
     secrets:
