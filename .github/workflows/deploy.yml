@@ -6,7 +6,7 @@ on:
 
 jobs:
   trigger-build:
-    uses: devopsbyraham/github-node-repo-PNXR/.github/workflows/main.yml@main
+    uses: devopsbyraham/Zomato-Project/.github/workflows/main.yml@main
     with:
       node-version: '20'
     secrets:
